@@ -1,0 +1,21 @@
+# The floci UI as a reusable compose file (buckets, queues, event bus, captured mails) on http://localhost:4500.
+# Opt-in: profile `ui`. Use it from another project in one of two ways:
+#
+#   include:   # in your docker-compose.yml; the service is `floci-ui`
+#     - git@github.com:Tschimmy/local-aws.git#main:docker-compose.ui.yml
+#
+#   floci-ui:  # or extend it, to add `depends_on` or to rename it
+#     extends:
+#       file: docker-compose.ui.yml
+#       service: floci-ui
+#
+# The emulator service must be reachable as `local-aws`. Under another name (e.g. `es-local-aws`), set
+# LOCAL_AWS_SERVICE=es-local-aws in the environment or in a `.env` file.
+services:
+  floci-ui:
+    image: floci/floci-ui:latest
+    profiles: ['ui']
+    ports:
+      - '127.0.0.1:4500:4500'
+    environment:
+      FLOCI_ENDPOINT: http://${LOCAL_AWS_SERVICE:-local-aws}:4566

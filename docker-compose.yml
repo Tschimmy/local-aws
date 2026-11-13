@@ -22,12 +22,9 @@ services:
       retries: 40
 
   floci-ui:
-    image: floci/floci-ui:latest
-    profiles: ['ui']
-    ports:
-      - '127.0.0.1:4500:4500'
-    environment:
-      FLOCI_ENDPOINT: http://local-aws:4566
+    extends:
+      file: docker-compose.ui.yml
+      service: floci-ui
     depends_on:
       local-aws:
         condition: service_healthy

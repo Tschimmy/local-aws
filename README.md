@@ -67,7 +67,8 @@ them on the bus with the AWS API, as it would in a real account.
 
 `docker compose --profile ui up -d` (see [`docker-compose.yml`](docker-compose.yml)) starts the
 [floci UI](https://hub.docker.com/r/floci/floci-ui) on <http://localhost:4500>: AWS, then Storage for buckets and
-objects, SQS for queues, EventBridge for the bus. (The console built into floci at `/_floci/ui` needs the Docker
+objects, SQS for queues, EventBridge for the bus. Other projects reuse the service from
+[`docker-compose.ui.yml`](docker-compose.ui.yml) (usage in its header). (The console built into floci at `/_floci/ui` needs the Docker
 socket and does not start here.)
 
 ## Develop
