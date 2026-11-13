@@ -1,0 +1,36 @@
+# Example: local-aws next to your app. `docker compose up -d` and wait for "healthy", like a database.
+#   docker compose --profile ui up -d    # adds the floci UI on http://localhost:4500
+services:
+  local-aws:
+    image: ghcr.io/tschimmy/local-aws:latest   # or `build: .` in this repository
+    container_name: local-aws
+    ports:
+      - '127.0.0.1:4566:4566'   # AWS API (S3, SQS, EventBridge, SES, ...)
+      - '127.0.0.1:4599:4599'   # bridge: events and mail capture
+    environment:
+      FLOCI_DEFAULT_REGION: eu-central-1
+      LOCAL_AWS_BUCKETS: example-uploads,example-exports
+      LOCAL_AWS_QUEUES: example-jobs
+      LOCAL_AWS_EVENT_BUS: local
+      LOCAL_AWS_MAIL_BUCKET: local-mails
+    volumes:
+      - local-aws-data:/app/data   # state survives restarts; `docker compose down -v` resets it
+    healthcheck:   # also set in the image; repeated here so `depends_on: condition: service_healthy` is obvious
+      test: ['CMD-SHELL', 'test -f /tmp/local-aws-ready && curl -fs http://localhost:4566/_floci/health >/dev/null']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  floci-ui:
+    image: floci/floci-ui:latest
+    profiles: ['ui']
+    ports:
+      - '127.0.0.1:4500:4500'
+    environment:
+      FLOCI_ENDPOINT: http://local-aws:4566
+    depends_on:
+      local-aws:
+        condition: service_healthy
+
+volumes:
+  local-aws-data:
