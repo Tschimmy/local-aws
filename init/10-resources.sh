@@ -5,6 +5,8 @@
 #
 # Settings (environment of the container, all optional):
 #   LOCAL_AWS_BUCKETS     comma separated S3 buckets to create
+#   LOCAL_AWS_CORS_BUCKETS comma separated buckets that get a permissive CORS configuration
+#                         (browser uploads via presigned POST); created first if missing
 #   LOCAL_AWS_QUEUES      comma separated SQS queue names; each gets `<name>-dead-letter-queue`,
 #                         a 30 minute visibility timeout and a redrive after 3 receives
 #   LOCAL_AWS_EVENT_BUS   EventBridge bus to create (default `local`). Events put on a missing bus are dropped.
@@ -47,9 +49,19 @@ make_queue() {
   fi
 }
 
+put_cors() {
+  b="$1"
+  make_bucket "$b"
+  printf '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","POST","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"]}]}' \
+    > /tmp/cors.json
+  aws s3api put-bucket-cors --bucket "$b" --cors-configuration file:///tmp/cors.json >/dev/null 2>&1 \
+    && echo "[init] CORS on bucket $b" || echo "[init] WARN CORS on bucket $b not set"
+}
+
 old_ifs="$IFS"; IFS=','
 for b in $LOCAL_AWS_BUCKETS; do [ -n "$b" ] && make_bucket "$b"; done
 make_bucket "$MAIL_BUCKET"
+for b in $LOCAL_AWS_CORS_BUCKETS; do [ -n "$b" ] && put_cors "$b"; done
 for q in $LOCAL_AWS_QUEUES; do [ -n "$q" ] && make_queue "$q"; done
 IFS="$old_ifs"
 

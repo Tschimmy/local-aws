@@ -42,6 +42,9 @@ AWS_SECRET_ACCESS_KEY=test
 |---|---|---|
 | `FLOCI_DEFAULT_REGION` | `us-east-1` | Region floci serves. Use the region of your app. |
 | `LOCAL_AWS_BUCKETS` | none | Comma separated buckets to create. |
+| `LOCAL_AWS_CORS_BUCKETS` | none | Comma separated buckets that get a permissive CORS configuration (browser uploads via presigned POST); created first if missing. |
+| `LOCAL_AWS_IMAGE_VARIANTS` | none | Comma separated variant names for the Lambda stand-in: an invoked image-resize function copies `<key>-original<ext>` to `<key>-<variant><ext>` per name. Unset: an invoke is answered but copies nothing. |
+| `LOCAL_AWS_IMAGE_ORIGINAL_SUFFIX` | `-original` | Key suffix (before the extension) the Lambda stand-in replaces with `-<variant>`. |
 | `LOCAL_AWS_QUEUES` | none | Comma separated queues. Each gets `<name>-dead-letter-queue`, a 30 minute visibility timeout and a redrive after 3 receives. |
 | `LOCAL_AWS_EVENT_BUS` | `local` | Event bus to create, and the bus the bridge puts events on. |
 | `LOCAL_AWS_MAIL_BUCKET` | `local-mails` | Bucket for captured mails. |
@@ -56,8 +59,9 @@ with `docker stop`, not `docker kill`: writes of the last few seconds are flushe
 | Request | What happens |
 |---|---|
 | `POST /<source>/<event>` | The body becomes one event on the bus: `Source` = prefix + `<source>`, `DetailType` = `<event>`, `Detail` = the body. Answers `200` and `{}`. A bus that does not exist drops events silently, so it is created at start. |
-| `POST /mail/<operation>` or `POST /notification/<operation>` | The JSON body (`to`, `from`, `subject`, `html`, ...) is stored in the mail bucket as `<folder>/<time>-<operation>-<id>.json` and `.html`. Answers `200` and `{"id": "..."}`. Nothing is sent. Sources named `mail`, `notification` or `_handler` are therefore not bridgeable. |
+| `POST /mail/<operation>` or `POST /notification/<operation>` | The JSON body (`to`, `from`, `subject`, `html`, ...) is stored in the mail bucket as `<folder>/<time>-<operation>-<id>.json` and `.html`. Answers `200` and `{"id": "..."}`. Nothing is sent. A repeated `idempotencyKey` answers the first mail's id without a new capture. Two operations get schema-valid stubs instead of a capture: `emailAttachmentRequestUpload` / `emailPublicAttachmentRequestUpload` (PUT) answer `{preSignedUrl, key}` with a real presigned PUT URL into the mail bucket, and `sendingGroupCreate` answers a sending-group stub. Other methods and read operations answer `501` with a JSON error. Sources named `mail`, `notification` or `_handler` are therefore not bridgeable. |
 | `POST /_handler/begin`, `/_handler/end` | Body `{"name": "my-handler"}`. A consumer that runs handlers says which one is running. The folder of a captured mail is the name of the one handler running at that moment, `other` if none or several are. `GET /_handler` shows the state. |
+| `POST /2015-03-31/functions/<name>/invocations` | The Lambda Invoke API, as a stand-in for an image-resize function. An S3-event-shaped body (`{"Records": [{"s3": {"bucket", "object"}}]}`) makes it copy the original object to one key per `LOCAL_AWS_IMAGE_VARIANTS` name — no resizing, the copies hold the original bytes. Answers `202` for `InvocationType: Event`, otherwise `200` and `null`, like AWS. Point only your app's Lambda client here (`AWS_ENDPOINT_URL_LAMBDA=http://localhost:4599`). |
 | `GET /health` | `{"ok": true}` |
 
 Rules and targets (which event goes to which queue) are not created here: the app, or a small script next to it, puts
